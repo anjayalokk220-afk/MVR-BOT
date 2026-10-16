@@ -10,55 +10,64 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 @bot.event
 async def on_ready():
-    print(f"MVR-BOT IMAGE ONLINE: {bot.user}")
+    print(f"MVR-BOT IN/OUT READY: {bot.user}")
 
-async def make_welcome_image(member, text1="WELCOME"):
-    bg = Image.new("RGB", (800, 300), (30, 30, 40))
+async def make_image(member, title="WELCOME"):
+    bg = Image.new("RGB", (800, 300), (25, 25, 35))
     draw = ImageDraw.Draw(bg)
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(str(member.display_avatar.url)) as resp:
-                avatar_bytes = await resp.read()
-        avatar = Image.open(io.BytesIO(avatar_bytes)).resize((200, 200))
-        mask = Image.new("L", (200, 200), 0)
+                data = await resp.read()
+        av = Image.open(io.BytesIO(data)).resize((200,200))
+        mask = Image.new("L", (200,200), 0)
         ImageDraw.Draw(mask).ellipse((0,0,200,200), fill=255)
-        bg.paste(avatar, (50, 50), mask)
+        bg.paste(av, (50,50), mask)
     except: pass
-    draw.text((300, 80), text1, fill=(0,255,136), font=ImageFont.load_default())
-    draw.text((300, 150), member.name, fill=(255,255,255), font=ImageFont.load_default())
+    draw.text((300, 70), title, fill=(0,255,136) if title=="WELCOME" else (255,80,80), font=ImageFont.load_default())
+    draw.text((300, 140), member.name[:20], fill=(255,255,255), font=ImageFont.load_default())
+    draw.text((300, 200), f"Member #{member.guild.member_count}", fill=(180,180,180), font=ImageFont.load_default())
     buf = io.BytesIO()
     bg.save(buf, format="PNG")
     buf.seek(0)
     return buf
 
-def get_channel(guild):
+def get_in_channel(guild):
     for ch in guild.text_channels:
-        if "welcome" in ch.name.lower() or "general" in ch.name.lower():
+        if "in" in ch.name.lower() and "entrance" not in ch.name.lower():
             return ch
-    return guild.system_channel or guild.text_channels[0]
+    return None
+
+def get_out_channel(guild):
+    for ch in guild.text_channels:
+        if "out" in ch.name.lower():
+            return ch
+    return None
 
 @bot.event
 async def on_member_join(member):
     if member.bot: return
-    ch = get_channel(member.guild)
+    ch = get_in_channel(member.guild)
+    if not ch: return
     try:
-        img = await make_welcome_image(member, "WELCOME")
-        await ch.send(f"Selamat datang {member.mention} di {member.guild.name}!", file=discord.File(img, "welcome.png"))
+        img = await make_image(member, "WELCOME TO OUR SERVER")
+        await ch.send(content=f"Welcome {member.mention} di **{member.guild.name}**! 🎉", file=discord.File(img, "welcome.png"))
     except Exception as e:
-        print(f"Welcome error: {e}")
+        print(f"Welcome IN error: {e}")
         await ch.send(f"Welcome {member.mention}!")
 
 @bot.event
 async def on_member_remove(member):
     if member.bot: return
-    ch = get_channel(member.guild)
+    ch = get_out_channel(member.guild)
+    if not ch: return
     try:
-        img = await make_welcome_image(member, "GOODBYE")
-        await ch.send(f"Goodbye {member.name} 😢", file=discord.File(img, "goodbye.png"))
+        img = await make_image(member, "GOODBYE THANKS FOR COMING")
+        await ch.send(content=f"Goodbye **{member.name}** telah keluar 😢", file=discord.File(img, "goodbye.png"))
     except Exception as e:
-        print(f"Goodbye error (cek permission!): {e}")
+        print(f"Goodbye OUT error: {e}")
         try:
-            await ch.send(f"Goodbye {member.name} telah keluar dari server!")
+            await ch.send(f"Goodbye {member.name} telah keluar!")
         except: pass
 
 bot.run(os.getenv("DISCORD_TOKEN"))
