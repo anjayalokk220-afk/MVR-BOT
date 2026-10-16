@@ -1,56 +1,47 @@
 import discord
 from discord.ext import commands
 import os
-from datetime import datetime
 
-IN_CHANNEL_ID = 1560713614594277397   # in
-OUT_CHANNEL_ID = 1560713667065155584  # out
+intents = discord.Intents.default()
+intents.members = True
+intents.message_content = True
 
-intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="!", intents=intents)
+
+# GANTI SESUAI SERVER LU YA
+WELCOME_CHANNEL_ID = 1429123456789  # ID channel in-out lu
+ROLE_NAME = "Member MVR"  # Nama role yang mau di auto kasih
 
 @bot.event
 async def on_ready():
-    print(f"READY: {bot.user} - IN:{IN_CHANNEL_ID} OUT:{OUT_CHANNEL_ID}")
+    print(f"✅ Bot {bot.user} online! Auto-role aktif!")
 
 @bot.event
 async def on_member_join(member):
-    if member.bot: return
-    ch = bot.get_channel(IN_CHANNEL_ID)
-    if not ch: return
+    # 1. AUTO ROLE
+    role = discord.utils.get(member.guild.roles, name=ROLE_NAME)
+    if role:
+        try:
+            await member.add_roles(role)
+            print(f"✅ Kasih role {ROLE_NAME} ke {member.name}")
+        except Exception as e:
+            print(f"❌ Gagal kasih role: {e}")
     
-    embed = discord.Embed(
-        title="🚀 MEMBER BARU MENDARAT!",
-        description=f"Welcome {member.mention} ke **{member.guild.name}**!\n\n"
-                    f"Semoga betah dan jangan lupa baca rules ya! ✨",
-        color=0x00FF88,
-        timestamp=datetime.now()
-    )
-    embed.set_thumbnail(url=member.display_avatar.url)
-    embed.add_field(name="👤 Username", value=f"{member.name}", inline=True)
-    embed.add_field(name="📊 Member ke", value=f"{member.guild.member_count}", inline=True)
-    embed.set_footer(text=f"ID: {member.id}", icon_url=member.guild.icon.url if member.guild.icon else None)
-    
-    await ch.send(embed=embed)
+    # 2. WELCOME MESSAGE
+    channel = bot.get_channel(WELCOME_CHANNEL_ID)
+    if channel:
+        embed = discord.Embed(
+            title=f"Welcome to MVR! 🏁",
+            description=f"{member.mention} baru aja join!\nSekarang jadi {role.mention if role else ROLE_NAME}!",
+            color=0x00ff00
+        )
+        await channel.send(embed=embed)
 
 @bot.event
 async def on_member_remove(member):
-    if member.bot: return
-    ch = bot.get_channel(OUT_CHANNEL_ID)
-    if not ch: return
+    channel = bot.get_channel(WELCOME_CHANNEL_ID)
+    if channel:
+        await channel.send(f"👋 {member.name} udah keluar dari MVR. Bye!")
 
-    embed = discord.Embed(
-        title="💨 MEMBER CABUT!",
-        description=f"**{member.name}** telah meninggalkan **{member.guild.name}**.\n\n"
-                    f"Semoga sukses diluar sana! 👋",
-        color=0xFF4444,
-        timestamp=datetime.now()
-    )
-    embed.set_thumbnail(url=member.display_avatar.url)
-    embed.add_field(name="👤 Username", value=f"{member.name}", inline=True)
-    embed.add_field(name="📅 Join Date", value=f"<t:{int(member.joined_at.timestamp())}:R>" if member.joined_at else "-", inline=True)
-    embed.set_footer(text=f"Bye bye {member.name}!", icon_url=member.guild.icon.url if member.guild.icon else None)
-
-    await ch.send(embed=embed)
-
-bot.run(os.getenv("DISCORD_TOKEN"))
+# GANTI TOKEN DI BAWAH PAKE TOKEN BOT GITHUB LU
+bot.run(os.getenv("TOKEN"))
